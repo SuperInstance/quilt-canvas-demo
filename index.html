@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quilt Canon Canvas — All 7 Operations Working Together</title>
+<style>
+  body { font-family: -apple-system, system-ui, monospace; margin: 0; padding: 24px; background: #0d1117; color: #c9d1d9; }
+  h1 { color: #58a6ff; margin: 0 0 8px; font-size: 22px; }
+  h2 { color: #f0883e; margin: 24px 0 8px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+  .meta { color: #8b949e; font-size: 12px; margin-bottom: 24px; }
+  .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+  .panel h3 { margin: 0 0 8px; color: #58a6ff; font-size: 14px; }
+  .input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px; border-radius: 4px; width: 60%; font-family: inherit; }
+  .btn { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .btn:hover { background: #2ea043; }
+  .btn-warn { background: #9e6a03; }
+  .btn-warn:hover { background: #bb8009; }
+  pre { background: #0d1117; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; border: 1px solid #30363d; }
+  .result { color: #c9d1d9; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .small { font-size: 11px; color: #8b949e; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill-doctrine { background: #1f6f3a; color: #c9d1d9; }
+  .pill-impl { background: #6e4c1f; color: #c9d1d9; }
+  .pill-verif { background: #6e1f3a; color: #c9d1d9; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
+  .card-title { font-weight: 600; color: #c9d1d9; margin-bottom: 4px; }
+  .card-meta { color: #8b949e; font-size: 11px; }
+</style>
+</head>
+<body>
+<h1>Quilt Canon Canvas</h1>
+<div class="meta">
+  Live: <a href="https://live-canon.superinstance.dev" style="color:#58a6ff">live-canon.superinstance.dev</a>
+  · 71 papers, hash 0x7f563ed9982496a1, 7 operations
+  · Built from <code>@superinstance/canon-suite</code>, <code>@superinstance/canon-paper</code>, <code>@superinstance/canon-recs</code>, <code>@superinstance/canon-hash</code>
+</div>
+
+<div class="panel">
+  <h3>1. CLAIM — most-authoritative paper for a topic</h3>
+  <div class="row">
+    <input id="claim-input" class="input" value="trust ladder" placeholder="e.g. trust ladder, Mudra vessel bridge, polyformalism">
+    <button class="btn" onclick="runClaim()">claim</button>
+  </div>
+  <pre id="claim-out" class="result">loading…</pre>
+</div>
+
+<div class="panel">
+  <h3>2. DRILL — 3-paper training curriculum</h3>
+  <div class="row">
+    <input id="drill-input" class="input" value="Mudra vessel bridge" placeholder="topic">
+    <button class="btn btn-warn" onclick="runDrill()">drill</button>
+  </div>
+  <div id="drill-out" class="grid">loading…</div>
+</div>
+
+<div class="panel">
+  <h3>3. RECOMMEND — related papers</h3>
+  <div class="row">
+    <input id="recs-input" class="input" value="F161" placeholder="F-number, e.g. F161, F168">
+    <button class="btn" onclick="runRecs()">recommend</button>
+  </div>
+  <pre id="recs-out" class="result">loading…</pre>
+</div>
+
+<div class="panel">
+  <h3>4. STATE HASH — FNV-1a 64-bit of the canon</h3>
+  <pre id="hash-out">loading…</pre>
+</div>
+
+<div class="panel">
+  <h3>5. PAPER — fetch any paper with its body</h3>
+  <div class="row">
+    <input id="paper-input" class="input" value="470" placeholder="paper number, e.g. 470">
+    <button class="btn" onclick="runPaper()">fetch</button>
+  </div>
+  <div id="paper-out" class="result">loading…</div>
+</div>
+
+<script type="module">
+import { claim, drill } from 'https://esm.sh/@superinstance/canon-claim';
+import { getHex } from 'https://esm.sh/@superinstance/canon-hash';
+import { paper } from 'https://esm.sh/@superinstance/canon-paper';
+import { recommendByPaper } from 'https://esm.sh/@superinstance/canon-recs';
+
+window.claim = claim;
+window.drill = drill;
+window.getHex = getHex;
+window.paper = paper;
+window.recommendByPaper = recommendByPaper;
+
+const log = (id, msg) => document.getElementById(id).textContent = msg;
+
+async function init() {
+  try {
+    const h = await getHex();
+    log('hash-out', `state hash: ${h.hash || h}\npaper count: ${h.paper_count || '?'}\nbody count: ${h.body_count || '?'}`);
+  } catch (e) {
+    log('hash-out', 'error: ' + e.message);
+  }
+}
+
+window.runClaim = async () => {
+  const q = document.getElementById('claim-input').value;
+  try {
+    const r = await claim(q);
+    if (!r.winner) {
+      log('claim-out', 'no match');
+      return;
+    }
+    const w = r.winner;
+    log('claim-out', `query: ${r.query}\nwinner: paper-${w.number} (F${w.f_number}) ${w.title}\n  date: ${w.date}\n  score: ${w.score}\n  refs: F${(w.ref_f_numbers || []).join(', F')}\n\nbody excerpt:\n${(w.excerpt || '').slice(0, 400)}...`);
+  } catch (e) {
+    log('claim-out', 'error: ' + e.message);
+  }
+};
+
+window.runDrill = async () => {
+  const q = document.getElementById('drill-input').value;
+  try {
+    const r = await drill(q);
+    const out = document.getElementById('drill-out');
+    out.innerHTML = '';
+    for (const role of ['doctrine', 'implementation', 'verification']) {
+      const c = r.curriculum[role];
+      if (!c) continue;
+      const pillClass = role === 'doctrine' ? 'pill-doctrine' : role === 'implementation' ? 'pill-impl' : 'pill-verif';
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <span class="pill ${pillClass}">${role.toUpperCase()}</span>
+        <div class="card-title">F${c.f_number} — paper-${c.number}</div>
+        <div class="card-meta">${c.title}</div>
+        <div class="small" style="margin-top: 8px">${(c.excerpt || '').slice(0, 200)}…</div>
+      `;
+      out.appendChild(card);
+    }
+  } catch (e) {
+    log('drill-out', 'error: ' + e.message);
+    document.getElementById('drill-out').innerHTML = '<div class="card">error: ' + e.message + '</div>';
+  }
+};
+
+window.runRecs = async () => {
+  const num = parseInt(document.getElementById('recs-input').value, 10);
+  try {
+    const r = await recommendByPaper(num, 5);
+    if (r.error) {
+      log('recs-out', r.error);
+      return;
+    }
+    let out = `source: F${r.source.f_number} — ${r.source.title}\n\nrelated papers:\n`;
+    for (const x of r.recommendations) {
+      out += `  F${x.f_number} (sim=${x.similarity})  ${x.title}\n`;
+    }
+    log('recs-out', out);
+  } catch (e) {
+    log('recs-out', 'error: ' + e.message);
+  }
+};
+
+window.runPaper = async () => {
+  const num = parseInt(document.getElementById('paper-input').value, 10);
+  try {
+    const p = await paper(num);
+    if (p.error) {
+      log('paper-out', p.error);
+      return;
+    }
+    let out = `paper-${p.number} (F${p.f_number})\n${p.title}\n\ndate: ${p.date}  phase: ${p.phase}\nrefs: paper-${(p.ref_papers || []).join(', paper-')}\nf-refs: F${(p.ref_f_numbers || []).join(', F')}\n\n`;
+    if (p.body && p.body.excerpt) {
+      out += `body excerpt (${p.body.excerpt.length} chars):\n${p.body.excerpt}`;
+    } else {
+      out += `(no body — try a paper that's the F# winner)`;
+    }
+    log('paper-out', out);
+  } catch (e) {
+    log('paper-out', 'error: ' + e.message);
+  }
+};
+
+init();
+</script>
+</body>
+</html>
